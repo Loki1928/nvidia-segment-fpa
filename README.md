@@ -113,7 +113,7 @@ nvidia-segment-fpa/
 ├── README.md                       ← this file
 ├── decisions.md                    ← 8 design decisions with rationale
 ├── .gitignore
-└── Database/
+├── Database/
 │   ├── load_data.py                ← Python ETL with validation suite
 │   ├── rebuild_excel_from_db.py    ← recovery utility (rebuilds the source Excel from the DB)
 │   └── nvidia_fpa.db               ← SQLite database (loaded, ready to query)
