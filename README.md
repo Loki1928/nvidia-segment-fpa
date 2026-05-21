@@ -102,6 +102,8 @@ python load_data.py
 
 Expected output: dimension row counts (all OK), fact row counts (all OK), four reconciliation check blocks (all PASS across 22 checks), ending with "All reconciliation checks passed." Total runtime: under 2 seconds.
 
+Safe to re-run on a populated database — the script clears facts before dimensions to respect foreign-key order, then reloads everything from the source Excel.
+
 The loaded `nvidia_fpa.db` can be opened in [DB Browser for SQLite](https://sqlitebrowser.org/) (free) or any SQL client to inspect the schema and run ad-hoc queries.
 
 ### Project structure
@@ -111,8 +113,9 @@ nvidia-segment-fpa/
 ├── README.md                       ← this file
 ├── decisions.md                    ← 8 design decisions with rationale
 ├── .gitignore
-├── Database/
+└── Database/
 │   ├── load_data.py                ← Python ETL with validation suite
+│   ├── rebuild_excel_from_db.py    ← recovery utility (rebuilds the source Excel from the DB)
 │   └── nvidia_fpa.db               ← SQLite database (loaded, ready to query)
 └── Raw data/
     └── nvidia_annual_data.xlsx     ← reconciled extracts from 10-K / 10-Qs
@@ -130,6 +133,6 @@ nvidia-segment-fpa/
 
 ## About
 
-Built by **Lokendra Sharma** — FP&A analyst based in Jaipur, India, with 18 months of industrial training at Lenovo India supporting management reporting across 30+ countries (Apr 2024 – Sep 2025). CA Finalist, BCA, currently building a finance + data engineering portfolio targeting analyst roles at NVIDIA, Microsoft, Google, BMW, and similar global capability centres.
+Built by **Lokendra Sharma** — FP&A analyst based in Jaipur, India, with 18 months of industrial training at Lenovo India supporting management reporting across 30+ countries (Apr 2024 – Sep 2025). CA Finalist, BCA, currently building a finance + data engineering portfolio targeting analyst roles at NVIDIA, Microsoft, Google, BMW, and similar global capability centers.
 
-Contact: [lokendrassharma@gmail.com](mailto:lokendrassharma@gmail.com)
+Contact: [lokendrassharma@gmail.com](mailto:lokendrassharma@gmail.com) · [LinkedIn](https://www.linkedin.com/in/lokendra-sharma28/)
