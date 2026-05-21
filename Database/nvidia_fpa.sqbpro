@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="nvidia_fpa.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="0"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="3131"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="DimBasis" custom_title="0" dock_id="1" table="4,8:mainDimBasis"/><dock_state state="000000ff00000000fd00000001000000020000000000000000fc0100000001fb000000160064006f0063006b00420072006f00770073006500310100000000ffffffff0000011300ffffff000000000000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1*">-- ============================================
+-- NVIDIA Segment FP&amp;A Database Schema
+-- Star schema for quarterly + annual analysis
+-- ============================================
+
+-- ============================================
+-- DIMENSION TABLES
+-- ============================================
+
+CREATE TABLE DimPeriod (
+    PeriodKey       TEXT PRIMARY KEY,    -- e.g. 'FY26Q1', 'FY26'
+    FiscalYear      TEXT NOT NULL,        -- 'FY24', 'FY25', 'FY26'
+    FiscalQuarter   TEXT,                 -- 'Q1', 'Q2', 'Q3', 'Q4', NULL for annual
+    Granularity     TEXT NOT NULL,        -- 'Quarter' or 'Annual'
+    PeriodEndDate   DATE NOT NULL,        -- 2025-04-27 etc.
+    SortOrder       INTEGER NOT NULL      -- 1..N for chronological sorting
+);
+
+CREATE TABLE DimSegment (
+    SegmentKey      TEXT PRIMARY KEY,    -- 'CN', 'GFX', 'OTH'
+    SegmentName     TEXT NOT NULL         -- 'Compute &amp; Networking', 'Graphics', 'All Other'
+);
+
+CREATE TABLE DimEndMarket (
+    EndMarketKey    TEXT PRIMARY KEY,    -- 'DC', 'DC_COMP', 'DC_NET', 'GAMING', 'PROVIZ', 'AUTO', 'OEM'
+    EndMarketName   TEXT NOT NULL,
+    IsSubline       INTEGER NOT NULL,    -- 1 if it's a sub-line (DC-Compute, DC-Networking), else 0
+    ParentEndMarket TEXT                  -- 'DC' for sub-lines, NULL otherwise
+);
+
+CREATE TABLE DimGeography (
+    GeographyKey    TEXT PRIMARY KEY,    -- 'US', 'SG', 'TW', 'CN_HK', 'OTH'
+    GeographyName   TEXT NOT NULL
+);
+
+CREATE TABLE DimBasis (
+    BasisKey        TEXT PRIMARY KEY,    -- 'BILL_TO', 'CUST_HQ'
+    BasisName       TEXT NOT NULL,
+    EffectiveFrom   TEXT                  -- 'FY26Q3' for CUST_HQ
+);
+
+CREATE TABLE DimScenario (
+    ScenarioKey     TEXT PRIMARY KEY,    -- 'ACT', 'BASE', 'BULL', 'BEAR'
+    ScenarioName    TEXT NOT NULL
+);
+
+-- ============================================
+-- FACT TABLES
+-- ============================================
+
+CREATE TABLE FactSegment (
+    PeriodKey               TEXT NOT NULL,
+    SegmentKey              TEXT NOT NULL,
+    ScenarioKey             TEXT NOT NULL DEFAULT 'ACT',
+    Revenue_USDmm           REAL NOT NULL,
+    OtherSegmentItems_USDmm REAL NOT NULL,
+    OperatingIncome_USDmm   REAL NOT NULL,
+    PRIMARY KEY (PeriodKey, SegmentKey, ScenarioKey),
+    FOREIGN KEY (PeriodKey)   REFERENCES DimPeriod(PeriodKey),
+    FOREIGN KEY (SegmentKey)  REFERENCES DimSegment(SegmentKey),
+    FOREIGN KEY (ScenarioKey) REFERENCES DimScenario(ScenarioKey)
+);
+
+CREATE TABLE FactEndMarket (
+    PeriodKey       TEXT NOT NULL,
+    EndMarketKey    TEXT NOT NULL,
+    ScenarioKey     TEXT NOT NULL DEFAULT 'ACT',
+    Revenue_USDmm   REAL NOT NULL,
+    PRIMARY KEY (PeriodKey, EndMarketKey, ScenarioKey),
+    FOREIGN KEY (PeriodKey)    REFERENCES DimPeriod(PeriodKey),
+    FOREIGN KEY (EndMarketKey) REFERENCES DimEndMarket(EndMarketKey),
+    FOREIGN KEY (ScenarioKey)  REFERENCES DimScenario(ScenarioKey)
+);
+
+CREATE TABLE FactGeography (
+    PeriodKey       TEXT NOT NULL,
+    GeographyKey    TEXT NOT NULL,
+    BasisKey        TEXT NOT NULL,
+    ScenarioKey     TEXT NOT NULL DEFAULT 'ACT',
+    Revenue_USDmm   REAL NOT NULL,
+    PRIMARY KEY (PeriodKey, GeographyKey, BasisKey, ScenarioKey),
+    FOREIGN KEY (PeriodKey)    REFERENCES DimPeriod(PeriodKey),
+    FOREIGN KEY (GeographyKey) REFERENCES DimGeography(GeographyKey),
+    FOREIGN KEY (BasisKey)     REFERENCES DimBasis(BasisKey),
+    FOREIGN KEY (ScenarioKey)  REFERENCES DimScenario(ScenarioKey)
+);</sql><current_tab id="0"/></tab_sql></sqlb_project>
