@@ -121,6 +121,41 @@ Every meaningful design choice made while building this project, with the reason
 
 ---
 
+## Decision 9 — ETL idempotency via foreign-key-aware deletion order
+
+**Context:** The first version of `load_data.py` called `load_dimensions()` immediately at the start of `main()`. That function begins with `DELETE FROM DimBasis`, `DELETE FROM DimEndMarket`, etc. On an empty database this works fine. On a database that already has data loaded — which is exactly what happens when you re-run the script — SQLite raises `sqlite3.IntegrityError: FOREIGN KEY constraint failed` because `FactGeography` rows reference `DimBasis.BasisKey`.
+
+**Decision:** Added an explicit fact-table clear at the top of `main()` before any dimension work:
+```python
+for tbl in ("FactSegment", "FactEndMarket", "FactGeography"):
+    conn.execute(f"DELETE FROM {tbl}")
+```
+The full load order is now: clear facts → clear and reload dimensions → reload facts → validate. The script is now safely idempotent and will produce identical results on every run regardless of starting state.
+
+**Alternative considered:** (a) Disable foreign-key enforcement during the load with `PRAGMA foreign_keys = OFF`. Rejected because turning off integrity checks defeats their purpose and would mask real bugs where a fact row references a missing dimension. (b) Refactor `load_dimensions()` itself to be FK-aware by clearing facts internally. Rejected because deletion order is a property of the overall load *flow*, not of any single load function — putting it in `load_dimensions` would couple that function to facts it shouldn't know about.
+
+**Trade-off accepted:** A small block of seemingly-redundant deletion logic at the start of `main()` that an inexperienced reader might wonder about. Mitigated with an inline comment explaining the FK ordering requirement.
+
+**Interview talking point:** This is the difference between a script that runs once and a script that's idempotent. Production ETL has to be safely re-runnable; otherwise every load is a one-shot operation requiring manual cleanup before the next run. This bug was found by running the script a second time on a populated database — a recruiter who clones the repo and runs it twice will do exactly the same thing. Idempotency is not optional for code you intend to ship.
+
+---
+
+## Decision 10 — Database as a second source of truth (recovery utility)
+
+**Context:** After Week 1 was complete, the source Excel and its parent `Raw data` folder were accidentally deleted from the workstation. The SQLite database survived because it lives in a separate folder.
+
+**Decision:** Built `rebuild_excel_from_db.py` — a small utility script that reconstructs `nvidia_annual_data.xlsx` from `nvidia_fpa.db` by joining each fact table to its dimension names and writing the 6 source sheets in the exact format `load_data.py` expects (column names, name vs key columns, granularity split between quarterly and annual sheets). Verified via round-trip: rebuilt Excel → re-loaded into a wiped DB → all 22 reconciliation checks pass with diff = +0 on every line.
+
+**Why this matters as a design decision, not just a recovery script:** The round-trip works at all because the schema was designed cleanly. Every business name is in a dimension table, every fact references it by key, granularity is explicit, and basis-of-reporting is a first-class dimension. A messier schema — one with denormalized name columns scattered across fact tables, or hidden derived fields, or implicit assumptions about period order — wouldn't survive reconstruction. The fact that the recovered Excel produces a byte-perfect re-load is a property of the schema, not just the rebuild script.
+
+**Alternative considered:** Re-extract from the source 10-K and 10-Q PDFs. Rejected because it would have cost 4–6 hours and reintroduced risk of transcription errors. The database already held the validated, reconciled, tied-to-the-dollar state — the cheaper move was to recover from there.
+
+**Trade-off accepted:** The repo now has two candidate sources of truth (Excel as canonical input, DB as recoverable state). README is explicit that the primary direction is Excel → DB; the rebuild script's docstring is explicit that it's a recovery utility, not part of the normal load flow.
+
+**Interview talking point:** Real engineering eventually forces you to think about disaster recovery. When the Excel went missing, the question was "can I recover without losing the work?" The answer turned out to be yes — because the schema was clean enough that the DB held all the same information in a different shape. That's a quiet win that came from doing data modeling properly upfront. The lesson generalizes: a well-modeled database should be able to regenerate its own source extracts.
+
+---
+
 ## Open questions / decisions deferred
 
 These are decisions not yet made — they'll come up in later weeks of the project.
