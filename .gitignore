@@ -27,3 +27,7 @@ desktop.ini
 # Local logs and scratch
 *.log
 *.tmp
+
+# SEC filings ? link to SEC.gov instead of redistributing
+Source PDF/
+Source_PDF/
