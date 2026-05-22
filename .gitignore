@@ -28,6 +28,8 @@ desktop.ini
 *.log
 *.tmp
 
-# SEC filings ? link to SEC.gov instead of redistributing
+# SEC filings - link to SEC.gov instead of redistributing
 Source PDF/
-Source_PDF/
+
+# Local working notes - not for the public repo
+_local notes/
